@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 from config import Config as cfg
 
@@ -57,6 +57,12 @@ def render_names_at_mouse_location(
     m_x, m_y = engine.mouse_location
     names_at_location = _get_names_at(x=m_x, y=m_y, game_map=engine.game_map)
     console.print(x=x, y=y, string=names_at_location)
+
+
+def render_dungeon_floor_text(console: Console, level: int, location: Tuple[int, int]):
+    """Draw text displaying the current dungeon floor the player is on at the given x,y-location."""
+    x, y = location
+    console.print(x=x, y=y, string=f"Dungeon level: {level}")
 
 
 def _get_names_at(x: int, y: int, game_map: GameMap) -> str:

@@ -14,6 +14,7 @@ from config import Config as cfg
 from engine import Engine
 from entity_factories import EntityFactory
 import input_handlers
+from game_map import GameWorld
 from generation import generate_dungeon
 
 
@@ -26,16 +27,15 @@ def new_game() -> Engine:
     player = copy.deepcopy(EntityFactory.player)
     engine = Engine(player=player, fov_radius=cfg.Vision.DEFAULT_FOV_RADIUS)
 
-    engine.game_map = generate_dungeon(
+    engine.game_world = GameWorld(
+        engine=engine,
         max_rooms=cfg.Map.MAX_ROOMS,
         room_min_size=cfg.Map.ROOM_MIN_SIZE,
         room_max_size=cfg.Map.ROOM_MAX_SIZE,
         map_width=cfg.Map.WIDTH,
         map_height=cfg.Map.HEIGHT,
-        max_monsters_per_room=cfg.Map.MAX_MONSTERS_PER_ROOM,
-        max_items_per_room=cfg.Map.MAX_ITEMS_PER_ROOM,
-        engine=engine,
     )
+    engine.game_world.generate_floor()
     engine.update_fov()
 
     engine.message_log.add_message(

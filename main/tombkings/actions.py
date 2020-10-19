@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import random
 from typing import Optional, Tuple, TYPE_CHECKING
 
 from overrides import overrides
 
 from config import Config as cfg
+from combat import Combat, CombatResult
 import exceptions
 
 if TYPE_CHECKING:
@@ -106,17 +108,41 @@ class MeleeAction(DirectionalAction):
         if not target:
             raise exceptions.Impossible("There is nothing to attack.")
 
-        damage = self._actor.fighter.power - target.fighter.defense
-        attack_desc = f"{self._actor.name.capitalize()} attacks {target.name}"
-        if damage > 0:
-            self.engine.message_log.add_message(
-                f"{attack_desc} for {damage} hit points.", cfg.Color.PLAYER_ATK
+        result, damage = Combat.Melee.attack(self._actor, self.target_actor)
+        description = f"{self._actor.name} attacks the {target.name}"
+
+        if result == CombatResult.MISS:
+            description = f"{description} but it misses."
+
+        elif damage == 0:
+            description = f"{description} but does no damage."
+
+        elif result == CombatResult.HIT:
+            description = f"{description} for {damage} hit points."
+
+        elif result == CombatResult.CRITICAL:
+            verb: str = random.choice(
+                [
+                    "*slices*",
+                    "*whacks*",
+                    "*carves*",
+                    "*crushes*",
+                    "*mangles*",
+                ]
             )
-            target.fighter.hp -= damage
+            tail = "".join("!" for _ in range(random.randint(2, 5)))
+            description = f"{self._actor.name} {verb} the {target.name} for {damage} hit points{tail}"
+
+        if self._actor == self.engine.player:
+            color = cfg.Color.PLAYER_ATK
         else:
-            self.engine.message_log.add_message(
-                f"{attack_desc} but does no damage.", cfg.Color.PLAYER_ATK
-            )
+            color = cfg.Color.ENEMY_ATK
+
+        self.engine.message_log.add_message(
+            description, color
+        )
+
+        target.fighter.remove_hp(damage)
 
 
 class PickupAction(Action):
@@ -145,6 +171,17 @@ class PickupAction(Action):
         raise exceptions.Impossible("There is nothing here to pick up.")
 
 
+class EquipAction(Action):
+
+    def __init__(self, actor: Actor, item: Item):
+        super().__init__(actor)
+        self.item = item
+
+    @overrides
+    def perform(self) -> None:
+        self._actor.equipment.toggle_equip(self.item)
+
+
 class ItemAction(Action):
 
     def __init__(self, actor: Actor, item: Item, target_position: Optional[int, int] = None):
@@ -167,14 +204,32 @@ class ItemAction(Action):
     @overrides
     def perform(self) -> None:
         """Invoke the item's ability. This action will be passed in the method to provide context."""
-        self._item.consumable.activate(self)
+        if self._item.consumable:
+            self._item.consumable.activate(self)
 
 
 class DropItem(ItemAction):
 
     @overrides
     def perform(self) -> None:
+        """If the actor drops an equipped item, de-equip it before dropping it."""
+        if self._actor.equipment.is_item_equipped(self._item):
+            self._actor.equipment.toggle_equip(self._item)
         self._actor.inventory.drop(self._item)
+
+
+class StairsAction(Action):
+
+    @overrides
+    def perform(self) -> None:
+        """Take the stairs if any exist at the actor's location."""
+        if (self._actor.x, self._actor.y) == self.engine.game_map.downstairs_location:
+            self.engine.game_world.generate_floor()
+            self.engine.message_log.add_message(
+                "You descend the staircase.", cfg.Color.DESCEND
+            )
+        else:
+            raise exceptions.Impossible("There are no stairs here.")
 
 
 class WaitAction(Action):

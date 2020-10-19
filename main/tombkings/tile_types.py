@@ -49,5 +49,12 @@ WALL = new_tile(
     light=(ord(" "), (255, 255, 255), (130, 110, 50)),
 )
 
+DOWN_STAIRS = new_tile(
+    walkable=True,
+    transparent=True,
+    dark=(ord(">"), (0, 0, 100), (50, 50, 150)),
+    light=(ord(">"), (255, 255, 255), (200, 180, 50)),
+)
+
 # SHROUD represents unexplored tiles not in field of vision.
 SHROUD = np.array((ord(" "), (255, 255, 255), (0, 0, 0)), dtype=graphic_dt)

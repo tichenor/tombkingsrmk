@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Iterator, Set, Optional, TYPE_CHECKING
+from typing import Iterable, Iterator, Set, Optional, TYPE_CHECKING, Tuple
 
 import numpy as np  # type: ignore
 from tcod.console import Console
@@ -28,6 +28,8 @@ class GameMap:
         self._visible_tiles = np.full((width, height), fill_value=False, order="F")  # Tiles currently visible.
         self._explored_tiles = np.full((width, height), fill_value=False, order="F")  # Tiles previously seen.
 
+        self._downstairs_location = (0, 0)
+
         self._entities = set(entities)
 
     @property
@@ -50,6 +52,16 @@ class GameMap:
     def explored_tiles(self, value):
         self._explored_tiles = value
 
+    @property
+    def downstairs_location(self) -> Tuple[int, int]:
+        return self._downstairs_location
+
+    @downstairs_location.setter
+    def downstairs_location(self, val: Tuple[int, int]) -> None:
+        if not self.in_bounds(*val):
+            raise ValueError(
+                f"Coordinates {(val[0], val[1])} for `{self.downstairs_location.__name__}` are outside map boundaries")
+        self._downstairs_location = val
     @property
     def width(self) -> int:
         return self._width
@@ -119,3 +131,47 @@ class GameMap:
 
         return None
 
+
+class GameWorld:
+    """
+    Holds the settings for the game map and generates new maps when moving down the stairs.
+    """
+
+    def __init__(
+            self,
+            *,
+            engine: Engine,
+            map_width: int,
+            map_height: int,
+            max_rooms: int,
+            room_min_size: int,
+            room_max_size: int,
+            current_floor: int = 0,
+    ):
+
+        self._engine = engine
+        self._map_width = map_width
+        self._map_height = map_height
+
+        self._max_rooms = max_rooms
+        self._room_min_size = room_min_size
+        self._room_max_size = room_max_size
+
+        self._current_floor = current_floor
+
+    @property
+    def current_floor(self) -> int:
+        return self._current_floor
+
+    def generate_floor(self) -> None:
+        from generation import generate_dungeon
+        self._current_floor += 1
+
+        self._engine.game_map = generate_dungeon(
+            max_rooms=self._max_rooms,
+            room_min_size=self._room_min_size,
+            room_max_size=self._room_max_size,
+            map_width=self._map_width,
+            map_height=self._map_height,
+            engine=self._engine,
+        )

@@ -61,6 +61,8 @@ DROP_ITEM_KEY = tcod.event.K_d
 OPEN_INVENTORY_KEY = tcod.event.K_i
 SHOW_MESSAGE_HISTORY_KEY = tcod.event.K_v
 LOOK_AROUND_KEY = tcod.event.K_x
+DOWNSTAIRS_KEY = tcod.event.K_LESS
+CHARACTER_INFO_KEY = tcod.event.K_c
 
 CURSOR_Y_KEYS = {
     tcod.event.K_UP: -1,
@@ -113,6 +115,8 @@ class EventHandler(BaseEventHandler):
             if not self._engine.player.is_alive:
                 # The played was killed some time during or after the action.
                 return GameOverHandler(self._engine)
+            elif self._engine.player.level.requires_level_up:
+                return LevelUpEventHandler(self._engine)
             return MainEventHandler(self._engine)  # Otherwise return to the main handler.
         return self
 
@@ -154,6 +158,7 @@ class MainEventHandler(EventHandler):
         action: Optional[Action] = None
 
         key = event.sym
+        modifier = event.mod
         player = self._engine.player
 
         if key in MOVE_KEYS:
@@ -172,11 +177,18 @@ class MainEventHandler(EventHandler):
         elif key == OPEN_INVENTORY_KEY:
             return InventoryActivateHandler(self._engine)
 
+        elif key == CHARACTER_INFO_KEY:
+            return CharacterInfoEventHandler(self._engine)
+
         elif key == DROP_ITEM_KEY:
             return InventoryDropHandler(self._engine)
 
         elif key == LOOK_AROUND_KEY:
             return LookHandler(self._engine)
+
+        elif key == DOWNSTAIRS_KEY and modifier & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT):
+            """Key is >, e.g. `shift + <`"""
+            return actions.StairsAction(player)
 
         elif key == tcod.event.K_ESCAPE:
             raise SystemExit()
@@ -272,7 +284,13 @@ class InventoryEventHandler(AskUserEventHandler):
         if num_items > 0:
             for i, item in enumerate(self._engine.player.inventory.items):
                 item_key = chr(ord("a") + i)
-                console.print(x + 1, y + i + 1, f"({item_key}) {item.name}")
+                is_equipped = self.engine.player.equipment.is_item_equipped(item)
+                item_str = f"({item_key}) {item.name}"
+                if is_equipped:
+                    item_str = f"{item_str} (worn)"
+                    console.print(x + 1, y + i + 1, item_str, fg=cfg.Color.GREEN)
+                else:
+                    console.print(x + 1, y + i + 1, item_str)
         else:
             console.print(x + 1, y + 1, "(Empty)")
 
@@ -305,7 +323,12 @@ class InventoryActivateHandler(InventoryEventHandler):
     @overrides
     def on_item_selected(self, item: Item) -> Optional[ActionOrHandler]:
         """Return the action for the selected item."""
-        return item.consumable.get_action(self._engine.player)
+        if item.consumable:
+            return item.consumable.get_action(self._engine.player)
+        elif item.equippable:
+            return actions.EquipAction(self._engine.player, item)
+        else:
+            return None
 
 
 class InventoryDropHandler(InventoryEventHandler):
@@ -438,6 +461,118 @@ class AreaRangedTargetingHandler(SelectIndexHandler):
     def on_index_selected(self, x: int, y: int) -> Optional[Action]:
         self._engine.mouse_location = self._prev_mouse_location  # Move the location back to the last mouse position.
         return self._callback((x, y))
+
+
+class CharacterInfoEventHandler(AskUserEventHandler):
+
+    @overrides
+    def on_render(self, console: tcod.Console) -> None:
+        super().on_render(console)
+
+        player = self._engine.player
+
+        x = cfg.CharacterInfoWindow.get_pos_x(self._engine.player.x)
+        y = cfg.CharacterInfoWindow.POS_Y
+
+        console.draw_frame(
+            x=x,
+            y=y,
+            width=cfg.CharacterInfoWindow.WIDTH,
+            height=cfg.CharacterInfoWindow.HEIGHT,
+            title=cfg.CharacterInfoWindow.TITLE,
+            clear=True,
+            fg=cfg.CharacterInfoWindow.FOREGROUND_COLOR,
+            bg=cfg.CharacterInfoWindow.BACKGROUND_COLOR,
+        )
+
+        console.print(
+            x=x + 1,
+            y=y + 1,
+            string=f"Current level: {player.level.current_level}"
+        )
+
+        console.print(
+            x=x + 1,
+            y=y + 2,
+            string=f"Experience points: {player.level.current_experience}",
+        )
+
+        console.print(
+            x=x + 1,
+            y=y + 3,
+            string=f"To next level: {player.level.experience_to_next_level}"
+        )
+
+        console.print(
+            x=x + 1,
+            y=y + 5,
+            string=f"Attack power: {player.fighter.power}"
+        )
+
+        console.print(
+            x=x + 1,
+            y=y + 6,
+            string=f"Defense: {player.fighter.defense}"
+        )
+
+
+class LevelUpEventHandler(AskUserEventHandler):
+
+    @overrides
+    def on_render(self, console: tcod.Console) -> None:
+        super().on_render(console)
+        x = cfg.LevelUpWindow.get_pos_x(self.engine.player.x)  # Position the window so it isn't drawn over the player.
+        y = cfg.LevelUpWindow.POS_Y
+
+        console.draw_frame(
+            x=x,
+            y=y,
+            width=cfg.LevelUpWindow.WIDTH,
+            height=cfg.LevelUpWindow.HEIGHT,
+            title=cfg.LevelUpWindow.TITLE,
+            clear=True,
+            fg=cfg.LevelUpWindow.FOREGROUND_COLOR,
+            bg=cfg.LevelUpWindow.BACKGROUND_COLOR,
+        )
+
+        console.print(x=x+1, y=y+2, string=cfg.LevelUpWindow.TEXT)
+
+        console.print(
+            x=x+1,
+            y=y+4,
+            string=f"(a) Constitution (increase max health)"
+        )
+
+        console.print(
+            x=x+1,
+            y=y+5,
+            string=f"(b) Strength (increase attack power)",
+        )
+
+    @overrides
+    def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[ActionOrHandler]:
+
+        player = self.engine.player
+        key = event.sym
+        index = key - tcod.event.K_a
+
+        if 0 <= index <= 1:  # Depends on the number of options, needs to change if options are changed.
+            if index == 0:
+                player.fighter.modify_max_hp(cfg.Experience.LEVEL_UP_HEALTH)
+                player.level.increase_level()
+            elif index == 1:
+                player.fighter.increase_base_power(cfg.Experience.LEVEL_UP_POWER)
+                player.level.increase_level()
+        else:
+            self.engine.message_log.add_message("Invalid entry.", cfg.Color.INVALID)
+            return None
+
+        return super().ev_keydown(event)
+
+    @overrides
+    def ev_mousebuttondown(self, event: tcod.event.MouseButtonDown) -> Optional[ActionOrHandler]:
+        """Don't allow the player to click to exit the menu."""
+        return None
 
 
 class HistoryViewer(EventHandler):
