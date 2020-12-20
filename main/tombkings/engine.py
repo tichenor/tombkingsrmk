@@ -52,6 +52,10 @@ class Engine:
                             actor.ai.perform()
                         except exceptions.Impossible:
                             pass
+                        # Need to break out of this loop if the player died as the result of an action.
+                        if not self.player.is_alive:
+                            players_turn = True
+                            break
                         self.ticker.schedule_turn(actor.energy.speed, actor)
 
             self.ticker.ticks += 1  # Increment the time

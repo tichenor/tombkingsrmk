@@ -60,7 +60,7 @@ class Entity:
         clone.x = x
         clone.y = y
         clone.parent = game_map
-        game_map.add_entity(clone)
+        game_map.add_and_register_entity(clone)
         return clone
 
     def place(self, x: int, y: int, game_map: Optional[GameMap] = None) -> None:
@@ -73,7 +73,7 @@ class Entity:
                     self.game_map.entities.remove(self)
 
             self.parent = game_map
-            game_map.add_entity(self)
+            game_map.entities.add(self)
 
     def move(self, dx: int, dy: int) -> None:
         self._x += dx

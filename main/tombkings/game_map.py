@@ -90,7 +90,7 @@ class GameMap:
         """Iterate over this map's items."""
         yield from (entity for entity in self.entities if isinstance(entity, Item))
 
-    def add_entity(self, entity: Entity):
+    def add_and_register_entity(self, entity: Entity):
         self._entities.add(entity)
         if isinstance(entity, Actor) and entity.ai and entity.energy:
             self.engine.ticker.schedule_turn(entity.energy.speed, entity)

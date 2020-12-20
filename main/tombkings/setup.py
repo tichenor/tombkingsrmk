@@ -36,6 +36,7 @@ def new_game() -> Engine:
         map_height=cfg.Map.HEIGHT,
     )
     engine.game_world.generate_floor()
+    engine.ticker.schedule_turn(player.energy.speed, player)  # Schedule the player's next turn.
     engine.update_fov()
 
     engine.message_log.add_message(
