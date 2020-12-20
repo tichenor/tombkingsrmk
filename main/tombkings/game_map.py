@@ -90,6 +90,11 @@ class GameMap:
         """Iterate over this map's items."""
         yield from (entity for entity in self.entities if isinstance(entity, Item))
 
+    def add_entity(self, entity: Entity):
+        self._entities.add(entity)
+        if isinstance(entity, Actor) and entity.ai and entity.energy:
+            self.engine.ticker.schedule_turn(entity.energy.speed, entity)
+
     def in_bounds(self, x: int, y: int) -> bool:
         """Return True if x,y-coordinates are inside the map bounds."""
         return 0 <= x < self._width and 0 <= y < self._height

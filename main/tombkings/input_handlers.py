@@ -85,7 +85,7 @@ class BaseEventHandler(tcod.event.EventDispatch[ActionOrHandler]):
 
     def handle_events(self, event: tcod.event.Event) -> BaseEventHandler:
         """Handle an event and return the next active event handler."""
-        state = self.dispatch(event)
+        state = self.dispatch(event)  # Send the event to a ev_* method.
         if isinstance(state, BaseEventHandler):
             return state
         assert not isinstance(state, Action), f"{self!r} can not handle actions."
@@ -107,7 +107,7 @@ class EventHandler(BaseEventHandler):
     @overrides
     def handle_events(self, event: tcod.event.Event) -> BaseEventHandler:
         """Handle events for input handlers with an engine."""
-        action_or_state = self.dispatch(event)
+        action_or_state = self.dispatch(event)  # Send the event to a ev_* method.
         if isinstance(action_or_state, BaseEventHandler):
             return action_or_state
         if self.handle_action(action_or_state):

@@ -4,6 +4,7 @@ import copy
 import math
 from typing import Optional, Tuple, Type, TypeVar, TYPE_CHECKING, Union
 
+from components.energy import Energy
 from components.equipment import Equipment
 from components.equippable import Equippable
 from components.skills import Skills
@@ -59,7 +60,7 @@ class Entity:
         clone.x = x
         clone.y = y
         clone.parent = game_map
-        game_map.entities.add(clone)
+        game_map.add_entity(clone)
         return clone
 
     def place(self, x: int, y: int, game_map: Optional[GameMap] = None) -> None:
@@ -72,7 +73,7 @@ class Entity:
                     self.game_map.entities.remove(self)
 
             self.parent = game_map
-            game_map.entities.add(self)
+            game_map.add_entity(self)
 
     def move(self, dx: int, dy: int) -> None:
         self._x += dx
@@ -149,6 +150,8 @@ class Entity:
 
 class Actor(Entity):
 
+    ticker: Ticker
+
     def __init__(
             self,
             *,
@@ -163,6 +166,7 @@ class Actor(Entity):
             equipment: Equipment,
             skills: Skills,
             level: Level,
+            energy: Energy,
     ):
         super().__init__(
             x=x,
@@ -190,6 +194,9 @@ class Actor(Entity):
 
         self.level = level
         self.level.parent = self
+
+        self.energy = energy
+        self.energy.parent = self
 
     @property
     def is_alive(self) -> bool:

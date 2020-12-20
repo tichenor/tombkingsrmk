@@ -1,6 +1,7 @@
 from components import consumable
 from components.ai import BaseAI, HostileAI
 from components import consumable
+from components.energy import Energy
 from components.equipment import Equipment
 from components.equippable import Equippable
 from components.fighter import Fighter
@@ -28,6 +29,7 @@ class EntityFactory:
         equipment=Equipment(),
         skills=Skills(),
         level=Level(level_up_base=200),
+        energy=Energy(speed=10),
     )
 
     enemy_orc = Actor(
@@ -39,7 +41,8 @@ class EntityFactory:
         inventory=Inventory(capacity=0),
         equipment=Equipment(),
         skills=Skills(),
-        level=Level(xp_given=35)
+        level=Level(xp_given=35),
+        energy=Energy(speed=10),
     )
 
     enemy_troll = Actor(
@@ -52,6 +55,7 @@ class EntityFactory:
         equipment=Equipment(),
         skills=Skills(),
         level=Level(xp_given=100),
+        energy=Energy(speed=11),
     )
 
     """
