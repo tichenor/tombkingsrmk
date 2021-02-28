@@ -33,6 +33,14 @@ class Fighter(BaseComponent):
         self._base_accuracy = accuracy
         self._base_evasion = evasion
 
+    def overall_strength(self) -> int:
+        """Return an integer describing how powerful this fighter is."""
+        strength = 0
+        strength += 1 * self.hp
+        strength += 3 * self.defense
+        strength += 3 * self.power
+        return strength
+
     @property
     def hp(self) -> int:
         return self._hp

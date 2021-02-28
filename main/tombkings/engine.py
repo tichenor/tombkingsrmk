@@ -48,6 +48,9 @@ class Engine:
                         self.ticker.schedule_turn(actor.energy.speed, actor)
                         players_turn = True
                     else:
+                        if actor.parent != self.game_map:
+                            # Scheduled turns for actors not on the current map are ignored.
+                            continue
                         try:
                             actor.ai.perform()
                         except exceptions.Impossible:

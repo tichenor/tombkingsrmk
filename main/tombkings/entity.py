@@ -203,7 +203,6 @@ class Actor(Entity):
         """Return True as long as this actor can perform actions."""
         return bool(self.ai)
 
-
 class Item(Entity):
 
     def __init__(

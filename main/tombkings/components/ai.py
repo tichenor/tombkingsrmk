@@ -46,9 +46,17 @@ class BaseAI(Action):
 
 class HostileAI(BaseAI):
 
+    """
+    Basic bread-and-butter hostile AI class. If the actor of this AI is in the players FOV, it attempts to
+    move towards the player or attack if close enough. It remembers the last position it saw the player in
+    using the 'examine_location' parameter, which it moves towards if it exists and is not in the players FOV.
+    This parameter can be set for other purposes if the AI should investigate a location.
+    """
+
     def __init__(self, actor: Actor):
         super().__init__(actor)
         self.path: List[Tuple[int, int]] = []
+        self.examine_location: Tuple[int, int] = None
 
     @overrides
     def perform(self) -> None:
@@ -59,11 +67,20 @@ class HostileAI(BaseAI):
         distance = max(abs(dx), abs(dy))  # Chebyshev distance.
 
         if self.engine.game_map.visible_tiles[self._actor.x, self._actor.y]:
-
+            self.examine_location = target.x, target.y
             if distance <= 1:
                 return MeleeAction(self._actor, dx, dy).perform()
 
             self.path = self._get_path_to(target.x, target.y)
+
+        elif self.examine_location:
+            examine_x, examine_y = self.examine_location
+
+            if (self._actor.x, self._actor.y) == (examine_x, examine_y):
+                self.examine_location = None
+
+            else:
+                self.path = self._get_path_to(examine_x, examine_y)
 
         if self.path:
 
