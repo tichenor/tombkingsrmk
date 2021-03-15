@@ -15,8 +15,6 @@ from engine import Engine
 from entity_factories import EntityFactory
 import input_handlers
 from game_map import GameWorld
-from generation import generate_dungeon
-
 
 # Load the background image and remove the alpha channel.
 background_image = tcod.image.load("assets/menu_background1.png")[:, :, :3]
@@ -42,6 +40,10 @@ def new_game() -> Engine:
     engine.message_log.add_message(
         "Hello and welcome, adventurer, to yet another dungeon!", cfg.Color.WELCOME_TEXT
     )
+    #TODO: make an actual good way of debugging and testing
+    test_heal_spell = copy.deepcopy(EntityFactory.spell_heal)
+    test_heal_spell.parent = player
+    player.spellbook.spells.append(test_heal_spell)
     return engine
 
 

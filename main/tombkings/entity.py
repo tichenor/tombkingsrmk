@@ -4,13 +4,14 @@ import copy
 import math
 from typing import Optional, Tuple, Type, TypeVar, TYPE_CHECKING, Union
 
-from components.energy import Energy
-from components.equipment import Equipment
-from components.equippable import Equippable
-from components.skills import Skills
 from render_order import RenderOrder
 
 if TYPE_CHECKING:
+    from components.energy import Energy
+    from components.equipment import Equipment
+    from components.equippable import Equippable
+    from components.skills import Skills
+    from components.spellbook import Spellbook
     from components.ai import BaseAI
     from components.fighter import Fighter
     from components.consumable import Consumable
@@ -150,8 +151,6 @@ class Entity:
 
 class Actor(Entity):
 
-    ticker: Ticker
-
     def __init__(
             self,
             *,
@@ -164,6 +163,7 @@ class Actor(Entity):
             fighter: Fighter,
             inventory: Inventory,
             equipment: Equipment,
+            spellbook: Spellbook,
             skills: Skills,
             level: Level,
             energy: Energy,
@@ -189,6 +189,9 @@ class Actor(Entity):
         self.equipment = equipment
         self.equipment.parent = self
 
+        self.spellbook = spellbook
+        self.spellbook.parent = self
+
         self.skills = skills
         self.skills.parent = self
 
@@ -202,6 +205,7 @@ class Actor(Entity):
     def is_alive(self) -> bool:
         """Return True as long as this actor can perform actions."""
         return bool(self.ai)
+
 
 class Item(Entity):
 

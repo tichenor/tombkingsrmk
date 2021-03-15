@@ -1,4 +1,5 @@
 import copy
+import sys
 import traceback
 
 import tcod
@@ -43,11 +44,16 @@ def main() -> None:
                         # Update the handling of input based on the event (e.g. opening menu, reading scroll may
                         # change how input should be handled and how things should be drawn to the screen).
                         handler = handler.handle_events(event)
-                except Exception:  # Handle exceptions in-game.
+                except Exception as err:  # Handle exceptions in-game.
                     traceback.print_exc()  # Print error to stderr.
                     # Then print it to the in-game message log.
                     if isinstance(handler, input_handlers.EventHandler):
-                        handler.engine.message_log.add_message(traceback.format_exc(), cfg.Color.ERROR)
+                        err_type, err_val, *_ = sys.exc_info()
+                        handler.engine.message_log.add_message(
+                            err.__class__.__name__ + ": " + err.__str__(), cfg.Color.ERROR
+                        )
+                        if cfg.DEBUG:
+                            handler.engine.debug_log.add_message(traceback.format_exc(), cfg.Color.ERROR)
 
         except exceptions.QuitWithoutSaving:
             raise

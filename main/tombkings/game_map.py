@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 
 class GameMap:
-
     """Class managing data such as floors, walls, objects, what is visible, what is explored, and so on."""
 
     def __init__(self, engine: Engine, width: int, height: int, entities: Iterable[Entity] = ()):
@@ -62,6 +61,7 @@ class GameMap:
             raise ValueError(
                 f"Coordinates {(val[0], val[1])} for `{self.downstairs_location.__name__}` are outside map boundaries")
         self._downstairs_location = val
+
     @property
     def width(self) -> int:
         return self._width
@@ -122,9 +122,9 @@ class GameMap:
     def get_blocking_entity_at(self, pos_x: int, pos_y: int) -> Optional[Entity]:
         for entity in self._entities:
             if (
-                entity.blocks_movement
-                and entity.x == pos_x
-                and entity.y == pos_y
+                    entity.blocks_movement
+                    and entity.x == pos_x
+                    and entity.y == pos_y
             ):
                 return entity
         return None
@@ -153,7 +153,6 @@ class GameWorld:
             room_max_size: int,
             current_floor: int = 0,
     ):
-
         self._engine = engine
         self._map_width = map_width
         self._map_height = map_height
@@ -169,14 +168,17 @@ class GameWorld:
         return self._current_floor
 
     def generate_floor(self) -> None:
-        from generation import generate_dungeon
+        from generation import BasicRectangular, CellularAutomata
         self._current_floor += 1
 
-        self._engine.game_map = generate_dungeon(
-            max_rooms=self._max_rooms,
-            room_min_size=self._room_min_size,
-            room_max_size=self._room_max_size,
-            map_width=self._map_width,
-            map_height=self._map_height,
-            engine=self._engine,
-        )
+        if self.current_floor >= 3:
+            test_gen = CellularAutomata(self._map_width, self._map_height, self._engine, percent_walls=40)
+            self._engine.game_map = test_gen.generate_map()
+
+        map_generator = BasicRectangular(self._room_min_size,
+                                         self._room_max_size,
+                                         self._map_width,
+                                         self._map_height,
+                                         self._max_rooms,
+                                         self._engine)
+        self._engine.game_map = map_generator.generate_map()

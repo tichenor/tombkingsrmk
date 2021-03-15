@@ -12,6 +12,7 @@ import exceptions
 from config import Config as cfg
 
 if TYPE_CHECKING:
+    from components.spell import Spell
     from engine import Engine
     from entity import Item
 
@@ -56,6 +57,8 @@ CONFIRM_KEYS = {
     tcod.event.K_KP_ENTER
 }
 
+# Other actions and menus
+
 PICKUP_ITEM_KEY = tcod.event.K_g
 DROP_ITEM_KEY = tcod.event.K_d
 OPEN_INVENTORY_KEY = tcod.event.K_i
@@ -63,6 +66,11 @@ SHOW_MESSAGE_HISTORY_KEY = tcod.event.K_v
 LOOK_AROUND_KEY = tcod.event.K_x
 DOWNSTAIRS_KEY = tcod.event.K_LESS
 CHARACTER_INFO_KEY = tcod.event.K_c
+SPELL_MENU_KEY = tcod.event.K_z
+
+# Special
+
+DEBUG_CONSOLE_KEY = tcod.event.K_t
 
 CURSOR_Y_KEYS = {
     tcod.event.K_UP: -1,
@@ -161,6 +169,7 @@ class MainEventHandler(EventHandler):
         modifier = event.mod
         player = self._engine.player
 
+        # Movement/action keys
         if key in MOVE_KEYS:
             dx, dy = MOVE_KEYS[key]
             action = BumpAction(player, dx, dy)
@@ -168,6 +177,11 @@ class MainEventHandler(EventHandler):
         elif key in WAIT_KEYS:
             action = WaitAction(player)
 
+        elif key == DOWNSTAIRS_KEY and modifier & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT):
+            """Key is >, e.g. `shift + <`"""
+            return actions.StairsAction(player)
+
+        # Various menu/info commands
         elif key == SHOW_MESSAGE_HISTORY_KEY:
             return HistoryViewer(self._engine)
 
@@ -186,9 +200,12 @@ class MainEventHandler(EventHandler):
         elif key == LOOK_AROUND_KEY:
             return LookHandler(self._engine)
 
-        elif key == DOWNSTAIRS_KEY and modifier & (tcod.event.KMOD_LSHIFT | tcod.event.KMOD_RSHIFT):
-            """Key is >, e.g. `shift + <`"""
-            return actions.StairsAction(player)
+        elif key == SPELL_MENU_KEY:
+            return SpellMenuHandler(self._engine)
+
+        # Other/special
+        elif cfg.DEBUG and key == DEBUG_CONSOLE_KEY:
+            return DebugConsoleHandler(self._engine)
 
         elif key == tcod.event.K_ESCAPE:
             raise SystemExit()
@@ -243,6 +260,63 @@ class AskUserEventHandler(EventHandler):
         Called when the user is trying to exit or cancel an action. By default this returns to the main event handler.
         """
         return MainEventHandler(self._engine)
+
+
+class SpellMenuHandler(AskUserEventHandler):
+    """Handles the user selecting a spell."""
+    title = "Memorized spells"
+
+    @overrides
+    def on_render(self, console: tcod.Console) -> None:
+        super().on_render(console)
+        num_spells = len(self.engine.player.spellbook.spells)
+        height = max(num_spells + 2, 3)
+
+        x = 0
+        y = 0
+        if self.engine.player.x <= 30:
+            x = 40
+
+        width = len(self.title) + 4
+
+        console.draw_frame(
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            title=self.title,
+            clear=True,
+            fg=(255, 255, 255),
+            bg=(0, 0, 0),
+        )
+
+        if num_spells > 0:
+            for i, spell in enumerate(self.engine.player.spellbook.spells):
+                spell_key = chr(ord("a") + i)
+                spell_str = f"({spell_key}) {spell.name}"
+                console.print(x + 1, y + i + 1, spell_str)
+        else:
+            console.print(x + 1, y + 1, "(Empty)")
+
+    @overrides
+    def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[ActionOrHandler]:
+        player = self.engine.player
+        key = event.sym
+        index = key - tcod.event.K_a
+
+        if 0 <= index <= 26:
+            try:
+                selected_spell = player.spellbook.spells[index]
+            except IndexError:
+                self._engine.message_log.add_message("Invalid entry.", cfg.Color.INVALID)
+                return None
+            return self.on_spell_selected(selected_spell)
+
+        return super().ev_keydown(event)
+
+    def on_spell_selected(self, spell: Spell) -> Optional[ActionOrHandler]:
+        """Called when the user selects a valid spell."""
+        return spell.get_action()
 
 
 class InventoryEventHandler(AskUserEventHandler):
@@ -659,3 +733,73 @@ class PopupMessage(BaseEventHandler):
     def ev_keydown(self, event: "tcod.event.KeyDown") -> Optional[BaseEventHandler]:
         """Any key returns to the parent handler."""
         return self._parent
+
+
+class DebugConsoleHandler(EventHandler):
+
+    def __init__(self, engine: Engine):
+        super().__init__(engine)
+        self._log_length = len(engine.debug_log.messages)
+        self._typing: bool = False
+        self._input_text: str = ""
+
+    @overrides
+    def on_render(self, console: tcod.Console) -> None:
+        super().on_render(console)
+        log_console = tcod.Console(console.width - 6, console.height - 6)
+        log_console.draw_frame(0, 0, log_console.width, log_console.height)
+        log_console.print_box(
+            0, 0, log_console.width, 1, "Debug command line", alignment=tcod.CENTER
+        )
+
+        self._engine.debug_log.render_messages(
+            log_console,
+            1,
+            1,
+            log_console.width - 2,
+            log_console.height - 4,
+            self._engine.debug_log.messages
+        )
+
+        if self._typing:
+            log_console.draw_frame(0, log_console.height - 3, log_console.width, 3)
+            log_console.print_box(0, log_console.height - 3, log_console.width, 3, "")
+            log_console.print(1, log_console.height - 2, self._input_text)
+
+        log_console.blit(console, 3, 3)
+
+    @overrides
+    def ev_keydown(self, event: tcod.event.KeyDown) -> Optional[MainEventHandler]:
+
+        if event.sym in CONFIRM_KEYS:
+
+            if not self._typing:
+                # Start typing by pressing return or enter
+                self._typing = True
+                return
+            # If user is typing, return or enter submits the message/command
+            self._engine.debug_log.add_message(self._input_text, stack=False)
+            self._engine.parse_user_command(self._input_text)
+            self._input_text = ""
+            self._typing = False
+            return
+
+        elif event.sym == tcod.event.K_BACKSPACE:
+            # Remove the last character from input
+            if self._input_text:
+                self._input_text = self._input_text[:-1]
+                return
+
+        # Any other keypress exits the debugger
+        elif not self._typing:
+            return MainEventHandler(self._engine)
+
+    @overrides
+    def ev_textinput(self, event: tcod.event.TextInput) -> Optional[MainEventHandler]:
+        if not self._typing:
+            return
+        self._input_text += event.text
+        return
+
+
+

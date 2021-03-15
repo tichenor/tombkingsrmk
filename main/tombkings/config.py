@@ -5,6 +5,8 @@ class Config:
 
     # General
 
+    DEBUG = True
+
     SCREEN_WIDTH = 80
     SCREEN_HEIGHT = 50
 
@@ -86,6 +88,8 @@ class Config:
 
         MAX_MONSTERS_PER_ROOM = 3
         MAX_ITEMS_PER_ROOM = 2
+        MAX_MONSTERS_PER_FLOOR = 40
+        MAX_ITEMS_PER_FLOOR = 20
 
         MAX_ITEMS_BY_FLOOR: List[Tuple[int, int]] = [
             (1, 1),

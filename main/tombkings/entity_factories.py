@@ -8,16 +8,14 @@ from components.fighter import Fighter
 from components.inventory import Inventory
 from components.level import Level
 from components.skills import Skills
+from components.spell import HealingSpell
+from components.spellbook import Spellbook
 from entity import Actor, Item
 from equipment_slots import EquipmentSlot
 
 
 class EntityFactory:
     """Contains prefabricated instances of each entity (actor, item, etc.) that can be copied into the game."""
-
-    """
-    Monsters.
-    """
 
     player = Actor(
         char="@",
@@ -27,10 +25,15 @@ class EntityFactory:
         fighter=Fighter(hp=30, defense=2, power=5),
         inventory=Inventory(capacity=26),
         equipment=Equipment(),
+        spellbook=Spellbook(capacity=26),
         skills=Skills(),
         level=Level(level_up_base=200),
         energy=Energy(speed=10),
     )
+
+    """
+    Monsters.
+    """
 
     enemy_orc = Actor(
         char="o",
@@ -40,6 +43,7 @@ class EntityFactory:
         fighter=Fighter(hp=10, defense=0, power=3),
         inventory=Inventory(capacity=0),
         equipment=Equipment(),
+        spellbook=Spellbook(capacity=26),
         skills=Skills(),
         level=Level(xp_given=35),
         energy=Energy(speed=10),
@@ -53,10 +57,16 @@ class EntityFactory:
         fighter=Fighter(hp=16, defense=1, power=4),
         inventory=Inventory(capacity=0),
         equipment=Equipment(),
+        spellbook=Spellbook(capacity=26),
         skills=Skills(),
         level=Level(xp_given=100),
         energy=Energy(speed=11),
     )
+
+    __monster_dict__ = {
+        "orc": enemy_orc,
+        "troll": enemy_troll,
+    }
 
     """
     Items.
@@ -102,4 +112,22 @@ class EntityFactory:
         color=(139, 69, 19),
         name="leather armor",
         equippable=Equippable(slot=EquipmentSlot.BODY_ARMOR, bonus_defense=1)
+    )
+
+    __items_dict__ = {
+        "health potion": potion_health,
+        "scroll of lightning": scroll_lightning,
+        "scroll of confusion": scroll_confuse,
+        "scroll of fireball": scroll_fireball,
+        "dagger": weapon_dagger,
+        "leather armor": armor_leather,
+    }
+
+    """
+    Spells.
+    """
+
+    spell_heal = HealingSpell(
+        name="Minor heal",
+        amount=5
     )

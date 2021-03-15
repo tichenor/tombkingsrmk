@@ -35,7 +35,7 @@ class Level(BaseComponent):
     @property
     def requires_level_up(self) -> bool:
         """Return True if the actor have enough experience to level up."""
-        return self._current_xp > self.experience_to_next_level
+        return self._current_xp >= self.experience_to_next_level
 
     @property
     def experience_given(self) -> int:

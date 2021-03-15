@@ -18,6 +18,7 @@ class CombatResult(Enum):
 
 
 class Combat:
+
     class Melee:
 
         @staticmethod

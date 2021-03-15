@@ -10,6 +10,7 @@ from combat import Combat, CombatResult
 import exceptions
 
 if TYPE_CHECKING:
+    from components.spell import Spell
     from engine import Engine
     from entity import Entity, Actor, Item
 
@@ -206,6 +207,31 @@ class ItemAction(Action):
         """Invoke the item's ability. This action will be passed in the method to provide context."""
         if self._item.consumable:
             self._item.consumable.activate(self)
+
+
+class SpellAction(Action):
+
+    def __init__(self, actor: Actor, spell: Spell, target_position: Optional[int, int] = None):
+        super().__init__(actor)
+        self._spell = spell
+        if not target_position:
+            target_position = actor.x, actor.y
+        self._target_position = target_position
+
+    @property
+    def target_actor(self) -> Optional[Actor]:
+        """Return the actor at this action's target position."""
+        return self.engine.game_map.get_actor_at(*self._target_position)
+
+    @property
+    def destination(self) -> Tuple[int, int]:
+        """Return the coordinates for this action's destination."""
+        return self._target_position
+
+    @overrides
+    def perform(self) -> None:
+        """Invoke this action's spell effect. This action will be passed in the method to provide context."""
+        self._spell.invoke(self)
 
 
 class DropItem(ItemAction):

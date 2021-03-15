@@ -111,3 +111,4 @@ class MessageLog:
     @property
     def messages(self):
         return self._messages
+

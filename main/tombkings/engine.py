@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import lzma
 import pickle
+import random
 from typing import TYPE_CHECKING, Tuple, List, Optional, Set
 
 from tcod.console import Console
 import tcod.map
 
+from entity_factories import EntityFactory
 import exceptions
 from config import Config as cfg
-from message_log import MessageLog
+from message_logs import MessageLog
 import render_functions
 from ticker import Ticker
 
@@ -31,12 +33,17 @@ class Engine:
         self._fov_radius = fov_radius
         self._ticker = Ticker()
 
+        self._debug_log = None
+        if cfg.DEBUG:
+            self._debug_log = MessageLog()
+
     def handle_ai(self) -> None:
         """Go through the turn schedule and let actors do their turns until it is the player's turn.
         If there are other actors scheduled for the same tick as the player, they will currently get to
         act first."""
         players_turn = False
 
+        #TODO: Might cause bugs to have an arbitrarily long while-loop here
         while not players_turn:
 
             actors = self.ticker.next_turn()  # Get a list of any actors who are scheduled for this tick
@@ -111,6 +118,82 @@ class Engine:
             console=console, x=cfg.Tooltip.POS_X, y=cfg.Tooltip.POS_Y, engine=self
         )
 
+    def parse_user_command(self, cmd: str) -> None:
+        if not cmd:
+            return
+        response = f"Unknown command: {cmd}"
+        col = cfg.Color.INVALID
+        player = self._player
+
+        if cmd == "heal":
+            amt = player.fighter.add_hp(player.fighter.max_hp)
+            response = f"Restored {amt} health."
+            col = cfg.Color.GREEN
+
+        elif cmd == "lvlup":
+            to_next = player.level.experience_to_next_level - player.level.current_experience
+            player.level.add_experience(to_next)
+            response = f"Gained {to_next} experience."
+            col = cfg.Color.GREEN
+
+        elif cmd.startswith("spawnenemy "):
+            enemy = cmd[len("spawnenemy "):]
+            if enemy in EntityFactory.__monster_dict__.keys():
+                tries = 9
+                while tries > 0:
+                    x, y = player.x + random.randint(-2, 2), player.y + random.randint(-2, 2)
+                    if (x, y) == (player.x, player.y):
+                        tries -= 1
+                        continue
+                    if self.game_map.in_bounds(x, y)\
+                            and not any(e.x == x and e.y == y for e in self.game_map.entities)\
+                            and self.game_map.tiles["walkable"][x, y]:
+                        EntityFactory.__monster_dict__[enemy].copy_to(self.game_map, x, y)
+                        response = f"Enemy spawned: {enemy}."
+                        col = cfg.Color.GREEN
+                        break
+                    tries -= 1
+                else:
+                    response = f"Could not generate spawn location for enemy: {enemy}."
+                    col = cfg.Color.INVALID
+            else:
+                response = f"Unknown enemy: {enemy}."
+                col = cfg.Color.INVALID
+
+        elif cmd.startswith("spawnitem "):
+            item = cmd[len("spawnitem "):]
+            if item in EntityFactory.__items_dict__.keys():
+                tries = 9
+                while tries > 0:
+                    x, y = player.x + random.randint(-2, 2), player.y + random.randint(-2, 2)
+                    if (x, y) == (player.x, player.y):
+                        tries -= 1
+                        continue
+                    if self.game_map.in_bounds(x, y)\
+                            and not any(e.x == x and e.y == y for e in self.game_map.entities)\
+                            and self.game_map.tiles["walkable"][x, y]:
+                        EntityFactory.__items_dict__[item].copy_to(self.game_map, x, y)
+                        response = f"Item spawned: {item}."
+                        col = cfg.Color.GREEN
+                        break
+                    tries -= 1
+                else:
+                    response = f"Could not generate spawn location for item: {item}."
+                    col = cfg.Color.INVALID
+            else:
+                response = f"Unknown item: {item}."
+                col = cfg.Color.INVALID
+
+        elif cmd == "list enemies":
+            response = ", ".join(EntityFactory.__monster_dict__.keys())
+            col = cfg.Color.WHITE
+
+        elif cmd == "list items":
+            response = ", ".join(EntityFactory.__items_dict__.keys())
+            col = cfg.Color.WHITE
+
+        self._debug_log.add_message(response, fg=col)
+
     @property
     def ticker(self):
         return self._ticker
@@ -130,5 +213,9 @@ class Engine:
     @mouse_location.setter
     def mouse_location(self, val: Tuple[int, int]) -> None:
         self._mouse_location = val
+
+    @property
+    def debug_log(self):
+        return self._debug_log
 
 
